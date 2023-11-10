@@ -2,109 +2,155 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Matrix{
-	private double[][] matrix;
-	private int height;
-	private int width;
+	private double[][] array;
+	private int rowsCount;
+	private int colsCount;
 
-	public Matrix(double[][] matrix){
-		height = matrix.length;
-		width = matrix[0].length;
-		this.matrix = new double[height][width];
-		
-		for(int i = 0; i < height; i++){
-			this.matrix[i] = Arrays.copyOf(matrix[i], width);
-		}
+	public Matrix(){
+		enterMatrix();
 	}
 
-	public Matrix(int height, int width){
-		this.height = height;
-		this.width = width;
+	private Matrix(int rowsCount, int colsCount){
+		this.rowsCount = rowsCount;
+		this.colsCount = colsCount;
 
-		matrix = new double[height][width];
+		array = new double[rowsCount][colsCount];
 	}
 
-	public static Matrix sum(Matrix m1, Matrix m2){
-		if(m1.height != m2.height || m1.width != m2.width){
-			throw new WrongMatrixSizeException();
+	private void enterMatrix(){
+		Scanner sc = new Scanner(System.in);
+
+		System.out.print("Введите размер матрицы в формате m n: ");
+		rowsCount = sc.nextInt();
+		colsCount = sc.nextInt();
+		sc.nextLine();
+		array = new double[rowsCount][colsCount];
+
+		System.out.println("Выберите вариант ввода матрицы:\n1.поэлементно\n2.построчно");
+		int choose = Integer.parseInt(sc.nextLine());
+
+		if (choose == 1) {
+			for(int i = 0; i < rowsCount; i++){
+				for(int j = 0; j < colsCount; j++){
+					System.out.print("Введите элемент на позиции (" + (i + 1) + ", " + (j + 1) + "): ");
+					array[i][j] = Double.parseDouble(sc.nextLine());
+				}
+			}
+		} else if(choose == 2) {
+			Scanner con = new Scanner(System.in);
+			for(int i = 0; i < rowsCount; i++){
+				System.out.print("Введите строку " + (i + 1) + " через пробел: ");
+				array[i] = Arrays.stream(sc.nextLine().split(" ")).mapToDouble(Integer::parseInt).toArray();
+			}
 		}
 
-		Matrix result = new Matrix(m1.height, m1.width);
+	}
 
-		for(int i = 0; i < result.height; i++){
-			for(int j = 0; j < result.width; j++){
-				result.matrix[i][j] = m1.matrix[i][j] + m2.matrix[i][j];
+	public Matrix product(Matrix matrix){
+		if(colsCount == matrix.rowsCount){
+			Matrix result = new Matrix(rowsCount, matrix.colsCount);
+
+			for(int i = 0; i < result.rowsCount; i++){
+				for(int j = 0; j < result.colsCount; j++){
+					double sumValue = 0;
+
+					for(int k = 0; k < colsCount; k++){
+						sumValue += array[i][k]*matrix.array[k][j];
+					}
+
+					result.array[i][j] = sumValue;
+				}
+			}
+
+			return result;
+
+		} else if(rowsCount == matrix.colsCount) {
+			System.out.println("умножение A*B невозможно, но возможно умножение B*A. Умножить?(y/n)");
+
+			Scanner sc = new Scanner(System.in);
+			String ans = sc.nextLine();
+
+			if(!(ans.equals("y") || ans.equals("yes") || ans.equals("да") || ans.equals("д"))) return null;
+
+			Matrix result = new Matrix(matrix.rowsCount, colsCount);
+
+			for(int i = 0; i < result.rowsCount; i++){
+				for(int j = 0; j < result.colsCount; j++){
+					double sumValue = 0;
+
+					for(int k = 0; k < matrix.colsCount; k++){
+						sumValue += matrix.array[i][k]*array[k][j];
+					}
+
+					result.array[i][j] = sumValue;
+				}
+			}
+
+			return result;
+
+		} else return null;
+	}
+
+	public Matrix sum(Matrix matrix){
+		if(rowsCount != matrix.rowsCount || colsCount != matrix.colsCount) return null;
+
+		Matrix result = new Matrix(rowsCount, colsCount);
+
+		for(int i = 0; i < result.rowsCount; i++){
+			for(int j = 0; j < result.colsCount; j++){
+				result.array[i][j] = array[i][j] + matrix.array[i][j];
 			}
 		}
 
 		return result;
 	}
 
-	public static Matrix product(Matrix m1, Matrix m2){
-		if(m1.width != m2.height){
-			throw new WrongMatrixSizeException();
-		}
+	public int rank(){
+        int rank = 0;
 
-		Matrix result = new Matrix(m1.height, m2.width);
+        // Приведение матрицы к верхнетреугольному виду методом Гаусса
+        for (int row = 0; row < rowsCount; row++) {
+            // Поиск ведущего элемента
+            int lead = 0;
+            while (lead < colsCount && array[row][lead] == 0) {
+                lead++;
+            }
 
-		for(int i = 0; i < result.height; i++){
-			for(int j = 0; j < result.width; j++){
-				double sumValue = 0;
+            if (lead < colsCount) {
+                // Перестановка строк, чтобы ведущий элемент был ненулевым
+                swapRows(row, lead);
 
-				for(int k = 0; k < m1.width; k++){
-					sumValue += m1.matrix[i][k]*m2.matrix[k][j];
-				}
+                // Обнуление элементов под ведущим
+                for (int i = row + 1; i < rowsCount; i++) {
+                    double factor = array[i][lead] / array[row][lead];
+                    for (int j = 0; j < colsCount; j++) {
+                        array[i][j] -= factor * array[row][j];
+                    }
+                }
+                rank++;
+            }
+        }
 
-				result.matrix[i][j] = sumValue;
-			}
-		}
-		return result;
+        return rank;
 	}
 
-	public void gauss(){
-		for(int i = 1; i < height; i++){
-			for(int j = 0; j < i; j++){
-				double factor = -1 * (matrix[i][j] / matrix[j][j]);
-
-				matrix[i][j] = 0;
-				for(int k = 0; k < width; k++){
-					if(j == k) continue;
-					matrix[i][k] += matrix[j][k]*factor;
-				}
-			}
-		}
-	}
-
-	public static Matrix enterMatrix(int height, int width, Scanner reader){
-		double[][] dataDouble = new double[height][width];
-
-		System.out.println("Введите матрицу " + height + "x" + width + " :");
-
-		for(int i = 0; i < height; i++){
-			for(int j = 0; j < width; j++){
-				dataDouble[i][j] = reader.nextInt();
-			}
-		}
-
-		System.out.println("Ввод закончен");
-		return new Matrix(dataDouble);
+	private void swapRows(int row1, int row2){
+		double[] temp = array[row1];
+        array[row1] = array[row2];
+        array[row2] = temp;
 	}
 
 	@Override
 	public String toString(){
-		String res = "";
+		String res = "Матрица (" + rowsCount + "*" + colsCount + "):\n";
 
-		for(double[] vector : matrix){
-			res += "|";
+		for(double[] vector : array){
 			for(double num : vector){
 				res += " " + num + " ";
 			}
-			res += "|\n";
+			res += "\n";
 		}
 
 		return res;
 	}
-}
-
-class WrongMatrixSizeException extends RuntimeException{
-
 }
