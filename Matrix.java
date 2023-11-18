@@ -2,9 +2,9 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class Matrix{
-	private double[][] array;
-	private int rowsCount;
-	private int colsCount;
+	public double[][] array;
+	public int rowsCount;
+	public int colsCount;
 
 	public Matrix(){
 		enterMatrix();
@@ -15,6 +15,22 @@ public class Matrix{
 		this.colsCount = colsCount;
 
 		array = new double[rowsCount][colsCount];
+	}
+
+	public static Matrix getSingleMatrix(int rowsCount, int colsCount){
+		Matrix e = new Matrix(rowsCount, colsCount);
+
+		for(int i = 0; i < rowsCount; i++){
+			for(int j = 0; j < colsCount; j++){
+				if(i == j){
+					e.array[i][j] = 1;
+				} else {
+					e.array[i][j] = 0;
+				}
+			}
+		}
+
+		return e;
 	}
 
 	private void enterMatrix(){
@@ -40,7 +56,7 @@ public class Matrix{
 			Scanner con = new Scanner(System.in);
 			for(int i = 0; i < rowsCount; i++){
 				System.out.print("Введите строку " + (i + 1) + " через пробел: ");
-				array[i] = Arrays.stream(sc.nextLine().split(" ")).mapToDouble(Integer::parseInt).toArray();
+				array[i] = Arrays.stream(sc.nextLine().split(" ")).mapToDouble(Double::parseDouble).toArray();
 			}
 		}
 
@@ -106,39 +122,74 @@ public class Matrix{
 	}
 
 	public int rank(){
-        int rank = 0;
+		double[][] tmp = new double[rowsCount][colsCount];
+		int rank = 0;
+		boolean notEmpty = false;
 
-        // Приведение матрицы к верхнетреугольному виду методом Гаусса
-        for (int row = 0; row < rowsCount; row++) {
-            // Поиск ведущего элемента
-            int lead = 0;
-            while (lead < colsCount && array[row][lead] == 0) {
-                lead++;
-            }
+		for(int i = 0; i < rowsCount; i++){
+			tmp[i] = Arrays.copyOf(array[i], array[i].length);
+		}
 
-            if (lead < colsCount) {
-                // Перестановка строк, чтобы ведущий элемент был ненулевым
-                swapRows(row, lead);
-
-                // Обнуление элементов под ведущим
-                for (int i = row + 1; i < rowsCount; i++) {
-                    double factor = array[i][lead] / array[row][lead];
-                    for (int j = 0; j < colsCount; j++) {
-                        array[i][j] -= factor * array[row][j];
-                    }
+		for (int row = 0; row < rowsCount; row++) {
+            for (int i = row + 1; i < rowsCount; i++) {
+                double factor = -1 * (tmp[i][row] / tmp[row][row]);
+                for (int j = 0; j < colsCount; j++) {
+                	tmp[i][j] += factor * tmp[row][j];
                 }
-                rank++;
             }
+        }
+
+        for(int i = 0; i < rowsCount; i++){
+        	notEmpty = false;
+        	for(int j = 0; j < colsCount; j++){
+        		if(tmp[i][j] != 0) notEmpty = true;
+        	}
+        	if(notEmpty) rank++;
         }
 
         return rank;
 	}
 
-	private void swapRows(int row1, int row2){
-		double[] temp = array[row1];
-        array[row1] = array[row2];
-        array[row2] = temp;
+	public Matrix solve(Matrix b){
+		if(rowsCount != colsCount) return null;
+
+		Matrix solved = gauss(Matrix.getSingleMatrix(rowsCount, colsCount)).product(b);
+
+		return solved;
 	}
+
+	public Matrix gauss(Matrix single){
+		for (int row = 0; row < rowsCount; row++) {
+            for (int i = row + 1; i < rowsCount; i++) {
+                double factor = -1 * (array[i][row] / array[row][row]);
+                for (int j = 0; j < colsCount; j++) {
+                	array[i][j] += factor * array[row][j];
+					single.array[i][j] += factor * single.array[row][j];
+                }
+            }
+                
+           	int rowInv = rowsCount - row - 1;
+
+			for(int i = rowInv - 1; i >= 0; i--){
+               	double factor = -1*(array[i][rowInv] / array[rowInv][rowInv]);
+                for(int j = 0; j < colsCount; j++){
+                	array[i][j] += factor * array[rowInv][j];
+                	single.array[i][j] += factor * single.array[rowInv][j];
+                }
+            }
+    	}
+
+    	for(int i = 0; i < rowsCount; i++){
+        	double del = array[i][i];
+
+        	for(int j = 0; j < colsCount; j++){
+            	single.array[i][j] /= del;
+       		}
+    	}
+
+        return single;
+	}
+
 
 	@Override
 	public String toString(){
