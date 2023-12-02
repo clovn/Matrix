@@ -10,11 +10,33 @@ public class Matrix{
 		enterMatrix();
 	}
 
+	public Matrix(Matrix toCopy){
+		rowsCount = toCopy.rowsCount;
+		colsCount = toCopy.colsCount;
+
+		array = new double[rowsCount][colsCount];
+
+		for(int i = 0; i < rowsCount; i++){
+			array[i] = Arrays.copyOf(toCopy.array[i], toCopy.array[i].length);
+		}
+	}
+
 	private Matrix(int rowsCount, int colsCount){
 		this.rowsCount = rowsCount;
 		this.colsCount = colsCount;
 
 		array = new double[rowsCount][colsCount];
+	}
+
+	private Matrix(Matrix matrix, Matrix free){
+		array = new double[matrix.rowsCount][matrix.colsCount + 1];
+
+		for(int i = 0; i < matrix.rowsCount; i++){
+			for(int j = 0; j < matrix.colsCount; j++){
+				array[i][j] = matrix.array[i][j];
+			}
+			array[i][matrix.colsCount] = free.array[i][0];
+		}
 	}
 
 	public static Matrix getSingleMatrix(int rowsCount, int colsCount){
@@ -36,30 +58,89 @@ public class Matrix{
 	private void enterMatrix(){
 		Scanner sc = new Scanner(System.in);
 
-		System.out.print("Введите размер матрицы в формате m n: ");
-		rowsCount = sc.nextInt();
-		colsCount = sc.nextInt();
+		
+
+		while(true){
+			System.out.print("Введите размер матрицы в формате m n: ");
+
+			try{
+				rowsCount = sc.nextInt();
+				colsCount = sc.nextInt();
+
+				if(rowsCount >= 1 && colsCount >= 1) break;
+				else throw new Exception();
+
+
+			} catch (Exception e){
+				System.out.println("Wrong input. Try again.\n");
+				sc.nextLine();
+			}
+		}
+			
 		sc.nextLine();
 		array = new double[rowsCount][colsCount];
 
-		System.out.println("Выберите вариант ввода матрицы:\n1.поэлементно\n2.построчно");
-		int choose = Integer.parseInt(sc.nextLine());
+		int choose;
+
+		while(true){
+			try{
+				System.out.println("Выберите вариант ввода матрицы:\n1.поэлементно\n2.построчно");
+				choose = Integer.parseInt(sc.nextLine());
+				break;
+			} catch (Exception e){
+				System.out.println("Wrong input. Try again.");
+			}
+		}
 
 		if (choose == 1) {
 			for(int i = 0; i < rowsCount; i++){
 				for(int j = 0; j < colsCount; j++){
-					System.out.print("Введите элемент на позиции (" + (i + 1) + ", " + (j + 1) + "): ");
-					array[i][j] = Double.parseDouble(sc.nextLine());
+					while(true){
+						try{
+							System.out.print("Введите элемент на позиции (" + (i + 1) + ", " + (j + 1) + "): ");
+							array[i][j] = Double.parseDouble(sc.nextLine());
+							break;
+						} catch (Exception e){
+							System.out.println("Wrong input. Try again.");
+						}
+					}
 				}
 			}
 		} else if(choose == 2) {
 			Scanner con = new Scanner(System.in);
 			for(int i = 0; i < rowsCount; i++){
-				System.out.print("Введите строку " + (i + 1) + " через пробел: ");
-				array[i] = Arrays.stream(sc.nextLine().split(" ")).mapToDouble(Double::parseDouble).toArray();
+				while(true){
+					try{
+						System.out.print("Введите строку " + (i + 1) + " через пробел: ");
+						array[i] = Arrays.stream(sc.nextLine().split(" ")).mapToDouble(Double::parseDouble).toArray();
+						break;
+					} catch (Exception e) {
+						System.out.println("Wrong input. Try again.");
+					}
+				}
 			}
 		}
+	}
 
+	public static Matrix enterFree(int rowsCount){
+		Scanner sc = new Scanner(System.in);
+		Matrix res = new Matrix(rowsCount, 1);
+
+		System.out.println("Введите матрицу-столбец свободных членов");
+		for(int i = 0; i < rowsCount; i ++){
+			for(int j = 0; j < 1; j++){
+				while(true){
+					try{
+						System.out.print("Введите элемент на позиции (" + (i + 1) + ", " + (j + 1) + "): ");
+						res.array[i][j] = Double.parseDouble(sc.nextLine());
+						break;
+					} catch (Exception e) {
+						System.out.println("Wrong input. Try again");
+					}	
+				}
+			}	
+		}
+		return res;
 	}
 
 	public Matrix product(Matrix matrix){
@@ -142,7 +223,7 @@ public class Matrix{
         for(int i = 0; i < rowsCount; i++){
         	notEmpty = false;
         	for(int j = 0; j < colsCount; j++){
-        		if(tmp[i][j] != 0) notEmpty = true;
+        		if(Math.abs(tmp[i][j]) > 1e-10) notEmpty = true;
         	}
         	if(notEmpty) rank++;
         }
@@ -151,14 +232,23 @@ public class Matrix{
 	}
 
 	public Matrix solve(Matrix b){
-		if(rowsCount != colsCount) return null;
+		Matrix ras = new Matrix(this, b);
+		if(ras.rank() != rank()) {
+			System.out.println("Нет решений");
+			return null;
+		} else {
+			if(rank() < colsCount){
+				System.out.println("Бесконечное количество решений");
+				return null;
+			}
+		}
 
 		Matrix solved = gauss(Matrix.getSingleMatrix(rowsCount, colsCount)).product(b);
 
 		return solved;
 	}
 
-	public Matrix gauss(Matrix single){
+	private Matrix gauss(Matrix single){
 		for (int row = 0; row < rowsCount; row++) {
             for (int i = row + 1; i < rowsCount; i++) {
                 double factor = -1 * (array[i][row] / array[row][row]);
@@ -190,6 +280,53 @@ public class Matrix{
         return single;
 	}
 
+	private Matrix swapCols(int s, Matrix free){
+		Matrix res = new Matrix(this);
+
+		for(int i = 0; i < rowsCount; i++){
+			res.array[i][s] = free.array[i][0];
+		}
+
+		return res;
+	}
+
+	private double det(){
+		Matrix a = new Matrix(this);
+
+        for (int i = 0; i < a.rowsCount - 1; i++) {
+            for (int j = i + 1; j < a.rowsCount; j++) {
+                double factor = a.array[j][i] / a.array[i][i];
+                for (int k = i; k < a.rowsCount; k++) {
+                    a.array[j][k] -= factor * a.array[i][k];
+                }
+            }
+        }
+
+        double determinant = 1.0;
+        for (int i = 0; i < a.rowsCount; i++) {
+            determinant *= a.array[i][i];
+        }
+
+        return determinant;
+	}
+
+	public void cramer(Matrix free){
+		double det = det();
+
+		if(rowsCount == colsCount && det != 0){
+			for(int i = 0; i < colsCount; i++){
+				Matrix tmp = swapCols(i, free);
+
+				System.out.println(tmp);
+				System.out.println(tmp.det());
+
+				System.out.println("x" + (i + 1) + " = " + (tmp.det()/det));
+			}
+		} else {
+			System.out.println("Решение системы методом крамера невозможно");
+		}
+	}
+
 
 	@Override
 	public String toString(){
@@ -197,7 +334,7 @@ public class Matrix{
 
 		for(double[] vector : array){
 			for(double num : vector){
-				res += " " + num + " ";
+				res += num + " ";
 			}
 			res += "\n";
 		}
